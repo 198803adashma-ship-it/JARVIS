@@ -37,19 +37,14 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
-      - name: Install Android SDK
+      - name: Install Android SDK packages
         shell: bash
         run: |
-          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
 
-          echo "ANDROID_HOME=$ANDROID_HOME"
           echo "SDKMANAGER=$SDKMANAGER"
 
-          if [ ! -f "$SDKMANAGER" ]; then
-            echo "ERROR: sdkmanager topilmadi"
-            find "$ANDROID_HOME" -name sdkmanager -type f || true
-            exit 1
-          fi
+          "$SDKMANAGER" --version
 
           yes | "$SDKMANAGER" --licenses || true
 
@@ -59,7 +54,27 @@ jobs:
             "build-tools;35.0.0" \
             "build-tools;37.0.0"
 
-      - name: Configure Android SDK
+      - name: Fix old sdkmanager path for Buildozer
+        shell: bash
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+
+          sudo mkdir -p "$ANDROID_HOME/tools/bin"
+
+          sudo ln -sf \
+            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "$ANDROID_HOME/tools/bin/sdkmanager"
+
+          sudo ln -sf \
+            "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" \
+            "$ANDROID_HOME/tools/bin/avdmanager"
+
+          echo "Checking sdkmanager:"
+          ls -l "$ANDROID_HOME/tools/bin/sdkmanager"
+
+          "$ANDROID_HOME/tools/bin/sdkmanager" --version
+
+      - name: Configure Android environment
         shell: bash
         run: |
           echo "ANDROIDSDK=$ANDROID_HOME" >> "$GITHUB_ENV"
@@ -68,24 +83,9 @@ jobs:
 
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
           echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/tools/bin" >> "$GITHUB_PATH"
           echo "$ANDROID_HOME/build-tools/35.0.0" >> "$GITHUB_PATH"
           echo "$ANDROID_HOME/build-tools/37.0.0" >> "$GITHUB_PATH"
-
-      - name: Prepare Buildozer SDK
-        shell: bash
-        run: |
-          mkdir -p "$HOME/.buildozer/android/platform"
-
-          rm -rf "$HOME/.buildozer/android/platform/android-sdk"
-
-          ln -s "$ANDROID_HOME" \
-            "$HOME/.buildozer/android/platform/android-sdk"
-
-          echo "Buildozer SDK:"
-          ls -la "$HOME/.buildozer/android/platform/"
-
-          echo "AIDL:"
-          find "$ANDROID_HOME/build-tools" -name aidl -type f
 
       - name: Build APK
         run: |
