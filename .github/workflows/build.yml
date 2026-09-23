@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -59,11 +59,11 @@ jobs:
               compileSdk 35
 
               defaultConfig {
-                  applicationId 'com.jarvis.app'
+                  applicationId 'com.jarvis.assistant"
                   minSdk 23
                   targetSdk 35
-                  versionCode 2
-                  versionName '2.0'
+                  versionCode 10
+                  versionName "10.0"
               }
           }
           EOF
@@ -76,7 +76,8 @@ jobs:
               <application
                   android:theme="@style/AppTheme"
                   android:label="JARVIS"
-                  android:allowBackup="false">
+                  android:allowBackup="false"
+                  android:supportsRtl="true">
 
                   <activity
                       android:name=".MainActivity"
@@ -96,11 +97,14 @@ jobs:
 
           cat > app/src/main/res/values/styles.xml <<'EOF'
           <resources>
-              <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
+              <style name="AppTheme"
+                  parent="android:style/Theme.Material.NoActionBar">
+
                   <item name="android:fontFamily">sans</item>
                   <item name="android:windowLightStatusBar">false</item>
                   <item name="android:statusBarColor">#000000</item>
                   <item name="android:navigationBarColor">#000000</item>
+
               </style>
           </resources>
           EOF
@@ -141,9 +145,13 @@ jobs:
                   createInterface();
 
                   jarvisVoice = new TextToSpeech(this, result -> {
+
                       if (result == TextToSpeech.SUCCESS) {
+
                           int languageResult =
-                                  jarvisVoice.setLanguage(new Locale("uz", "UZ"));
+                                  jarvisVoice.setLanguage(
+                                          new Locale("uz", "UZ")
+                                  );
 
                           if (languageResult ==
                                   TextToSpeech.LANG_MISSING_DATA ||
@@ -156,8 +164,7 @@ jobs:
                           }
 
                           speak(
-                                  "Assalomu alaykum. " +
-                                  "Men JARVISman."
+                                  "Assalomu alaykum. Men JARVISman."
                           );
                       }
                   });
@@ -165,7 +172,8 @@ jobs:
 
               private void createInterface() {
 
-                  LinearLayout screen = new LinearLayout(this);
+                  LinearLayout screen =
+                          new LinearLayout(this);
 
                   screen.setOrientation(
                           LinearLayout.VERTICAL
@@ -183,7 +191,8 @@ jobs:
                           Color.BLACK
                   );
 
-                  TextView title = new TextView(this);
+                  TextView title =
+                          new TextView(this);
 
                   title.setText("JARVIS");
 
@@ -197,11 +206,11 @@ jobs:
                           Gravity.CENTER
                   );
 
-                  status = new TextView(this);
+                  status =
+                          new TextView(this);
 
                   status.setText(
-                          "Assalomu alaykum.\n" +
-                          "Men JARVISman."
+                          "Assalomu alaykum.\nMen JARVISman."
                   );
 
                   status.setTextColor(
@@ -218,10 +227,11 @@ jobs:
                           0, 40, 0, 40
                   );
 
-                  Button talk = new Button(this);
+                  Button talk =
+                          new Button(this);
 
                   talk.setText(
-                          "🎙 GAPIRISH"
+                          "GAPIRISH"
                   );
 
                   talk.setOnClickListener(
@@ -260,7 +270,7 @@ jobs:
               private void listen() {
 
                   status.setText(
-                          "🎙 Eshityapman..."
+                          "Eshityapman..."
                   );
 
                   Intent intent =
@@ -383,8 +393,7 @@ jobs:
                   } else {
 
                       speak(
-                              "Kechirasiz, " +
-                              "bu buyruqni hali bilmayman."
+                              "Kechirasiz, bu buyruqni hali bilmayman."
                       );
                   }
               }
@@ -424,7 +433,17 @@ jobs:
       - name: Build APK
         run: |
           gradle wrapper --gradle-version 8.11.1
+          ./gradlew clean
           ./gradlew assembleDebug
+
+      - name: Check APK
+        run: |
+          echo "===== APK FILE ====="
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
+          echo "===== APK TYPE ====="
+          file app/build/outputs/apk/debug/app-debug.apk
+          echo "===== APK CONTENT ====="
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | head -30
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
