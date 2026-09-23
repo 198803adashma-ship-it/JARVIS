@@ -20,6 +20,7 @@ jobs:
       - name: Create Android project
         run: |
           mkdir -p app/src/main/java/com/jarvis/app
+          mkdir -p app/src/main/res/values
 
           cat > settings.gradle <<'EOF'
           pluginManagement {
@@ -61,8 +62,8 @@ jobs:
                   applicationId 'com.jarvis.app'
                   minSdk 23
                   targetSdk 35
-                  versionCode 1
-                  versionName '1.0'
+                  versionCode 2
+                  versionName '2.0'
               }
           }
           EOF
@@ -70,9 +71,12 @@ jobs:
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
               <application
                   android:theme="@style/AppTheme"
-                  android:label="JARVIS">
+                  android:label="JARVIS"
+                  android:allowBackup="false">
 
                   <activity
                       android:name=".MainActivity"
@@ -90,13 +94,13 @@ jobs:
           </manifest>
           EOF
 
-          mkdir -p app/src/main/res/values
-
           cat > app/src/main/res/values/styles.xml <<'EOF'
           <resources>
-              <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+              <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
                   <item name="android:fontFamily">sans</item>
-                  <item name="android:colorAccent">#00AEEF</item>
+                  <item name="android:windowLightStatusBar">false</item>
+                  <item name="android:statusBarColor">#000000</item>
+                  <item name="android:navigationBarColor">#000000</item>
               </style>
           </resources>
           EOF
@@ -104,33 +108,312 @@ jobs:
           cat > app/src/main/java/com/jarvis/app/MainActivity.java <<'EOF'
           package com.jarvis.app;
 
+          import android.Manifest;
           import android.app.Activity;
           import android.os.Bundle;
+          import android.content.Intent;
+          import android.content.pm.PackageManager;
           import android.graphics.Color;
+          import android.speech.RecognizerIntent;
+          import android.speech.tts.TextToSpeech;
           import android.view.Gravity;
+          import android.widget.Button;
           import android.widget.LinearLayout;
           import android.widget.TextView;
 
+          import java.text.SimpleDateFormat;
+          import java.util.ArrayList;
+          import java.util.Date;
+          import java.util.Locale;
+
           public class MainActivity extends Activity {
+
+              private static final int VOICE_REQUEST = 100;
+              private static final int MIC_PERMISSION = 200;
+
+              private TextView status;
+              private TextToSpeech jarvisVoice;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
 
-                  LinearLayout layout = new LinearLayout(this);
-                  layout.setOrientation(LinearLayout.VERTICAL);
-                  layout.setGravity(Gravity.CENTER);
-                  layout.setBackgroundColor(Color.BLACK);
+                  createInterface();
+
+                  jarvisVoice = new TextToSpeech(this, result -> {
+                      if (result == TextToSpeech.SUCCESS) {
+                          int languageResult =
+                                  jarvisVoice.setLanguage(new Locale("uz", "UZ"));
+
+                          if (languageResult ==
+                                  TextToSpeech.LANG_MISSING_DATA ||
+                                  languageResult ==
+                                  TextToSpeech.LANG_NOT_SUPPORTED) {
+
+                              jarvisVoice.setLanguage(
+                                      Locale.getDefault()
+                              );
+                          }
+
+                          speak(
+                                  "Assalomu alaykum. " +
+                                  "Men JARVISman."
+                          );
+                      }
+                  });
+              }
+
+              private void createInterface() {
+
+                  LinearLayout screen = new LinearLayout(this);
+
+                  screen.setOrientation(
+                          LinearLayout.VERTICAL
+                  );
+
+                  screen.setGravity(
+                          Gravity.CENTER
+                  );
+
+                  screen.setPadding(
+                          40, 40, 40, 40
+                  );
+
+                  screen.setBackgroundColor(
+                          Color.BLACK
+                  );
 
                   TextView title = new TextView(this);
-                  title.setText("JARVIS ONLINE");
-                  title.setTextColor(Color.CYAN);
-                  title.setTextSize(32);
-                  title.setGravity(Gravity.CENTER);
 
-                  layout.addView(title);
+                  title.setText("JARVIS");
 
-                  setContentView(layout);
+                  title.setTextColor(
+                          Color.CYAN
+                  );
+
+                  title.setTextSize(42);
+
+                  title.setGravity(
+                          Gravity.CENTER
+                  );
+
+                  status = new TextView(this);
+
+                  status.setText(
+                          "Assalomu alaykum.\n" +
+                          "Men JARVISman."
+                  );
+
+                  status.setTextColor(
+                          Color.WHITE
+                  );
+
+                  status.setTextSize(21);
+
+                  status.setGravity(
+                          Gravity.CENTER
+                  );
+
+                  status.setPadding(
+                          0, 40, 0, 40
+                  );
+
+                  Button talk = new Button(this);
+
+                  talk.setText(
+                          "🎙 GAPIRISH"
+                  );
+
+                  talk.setOnClickListener(
+                          v -> checkMicrophone()
+                  );
+
+                  screen.addView(title);
+                  screen.addView(status);
+                  screen.addView(talk);
+
+                  setContentView(screen);
+              }
+
+              private void checkMicrophone() {
+
+                  if (android.os.Build.VERSION.SDK_INT >= 23) {
+
+                      if (checkSelfPermission(
+                              Manifest.permission.RECORD_AUDIO
+                      ) != PackageManager.PERMISSION_GRANTED) {
+
+                          requestPermissions(
+                                  new String[]{
+                                          Manifest.permission.RECORD_AUDIO
+                                  },
+                                  MIC_PERMISSION
+                          );
+
+                          return;
+                      }
+                  }
+
+                  listen();
+              }
+
+              private void listen() {
+
+                  status.setText(
+                          "🎙 Eshityapman..."
+                  );
+
+                  Intent intent =
+                          new Intent(
+                                  RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+                          );
+
+                  intent.putExtra(
+                          RecognizerIntent.EXTRA_LANGUAGE,
+                          "uz-UZ"
+                  );
+
+                  intent.putExtra(
+                          RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE,
+                          "uz-UZ"
+                  );
+
+                  intent.putExtra(
+                          RecognizerIntent.EXTRA_PROMPT,
+                          "JARVIS sizni eshityapti"
+                  );
+
+                  try {
+
+                      startActivityForResult(
+                              intent,
+                              VOICE_REQUEST
+                      );
+
+                  } catch (Exception e) {
+
+                      speak(
+                              "Ovozli xizmatni ishga tushira olmadim."
+                      );
+                  }
+              }
+
+              @Override
+              protected void onActivityResult(
+                      int requestCode,
+                      int resultCode,
+                      Intent data) {
+
+                  super.onActivityResult(
+                          requestCode,
+                          resultCode,
+                          data
+                  );
+
+                  if (requestCode == VOICE_REQUEST &&
+                          resultCode == RESULT_OK &&
+                          data != null) {
+
+                      ArrayList<String> results =
+                              data.getStringArrayListExtra(
+                                      RecognizerIntent.EXTRA_RESULTS
+                              );
+
+                      if (results != null &&
+                              !results.isEmpty()) {
+
+                          String command =
+                                  results.get(0);
+
+                          status.setText(
+                                  "Siz: " + command
+                          );
+
+                          processCommand(command);
+                      }
+                  }
+              }
+
+              private void processCommand(
+                      String command) {
+
+                  String text =
+                          command.toLowerCase(
+                                  Locale.getDefault()
+                          );
+
+                  if (text.contains("salom")) {
+
+                      speak(
+                              "Va alaykum assalom."
+                      );
+
+                  } else if (
+                          text.contains("isming") ||
+                          text.contains("isming nima")) {
+
+                      speak(
+                              "Mening ismim JARVIS."
+                      );
+
+                  } else if (
+                          text.contains("qalaysan")) {
+
+                      speak(
+                              "Rahmat. Men yaxshi ishlayapman."
+                      );
+
+                  } else if (
+                          text.contains("vaqt") ||
+                          text.contains("soat")) {
+
+                      SimpleDateFormat format =
+                              new SimpleDateFormat(
+                                      "HH:mm",
+                                      Locale.getDefault()
+                              );
+
+                      speak(
+                              "Hozir soat " +
+                              format.format(
+                                      new Date()
+                              )
+                      );
+
+                  } else {
+
+                      speak(
+                              "Kechirasiz, " +
+                              "bu buyruqni hali bilmayman."
+                      );
+                  }
+              }
+
+              private void speak(String text) {
+
+                  status.setText(text);
+
+                  if (jarvisVoice != null) {
+
+                      jarvisVoice.speak(
+                              text,
+                              TextToSpeech.QUEUE_FLUSH,
+                              null,
+                              "JARVIS"
+                      );
+                  }
+              }
+
+              @Override
+              protected void onDestroy() {
+
+                  if (jarvisVoice != null) {
+
+                      jarvisVoice.stop();
+                      jarvisVoice.shutdown();
+                  }
+
+                  super.onDestroy();
               }
           }
           EOF
