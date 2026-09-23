@@ -1,4 +1,4 @@
-name: JARVIS Fixed APK
+name: JARVIS Installable APK
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -63,8 +63,15 @@ jobs:
                   applicationId 'com.jarvis.app'
                   minSdk 23
                   targetSdk 35
-                  versionCode 10
+                  versionCode 100
                   versionName '10.0'
+              }
+
+              buildTypes {
+                  debug {
+                      debuggable true
+                      minifyEnabled false
+                  }
               }
           }
           EOF
@@ -83,7 +90,7 @@ jobs:
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 
               <application
                   android:theme="@style/AppTheme"
@@ -97,14 +104,13 @@ jobs:
                       android:screenOrientation="portrait">
 
                       <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
                       </intent-filter>
 
                   </activity>
 
               </application>
-
           </manifest>
           EOF
 
@@ -135,16 +141,15 @@ jobs:
               private TextView status;
               private TextView answer;
               private TextToSpeech tts;
-              private SpeechRecognizer recognizer;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
 
-                  LinearLayout layout = new LinearLayout(this);
-                  layout.setOrientation(LinearLayout.VERTICAL);
-                  layout.setGravity(Gravity.CENTER);
-                  layout.setPadding(30, 30, 30, 30);
+                  LinearLayout root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setGravity(Gravity.CENTER);
+                  root.setPadding(30, 30, 30, 30);
 
                   status = new TextView(this);
                   status.setText("J.A.R.V.I.S ONLINE");
@@ -157,27 +162,28 @@ jobs:
                   answer.setGravity(Gravity.CENTER);
                   answer.setPadding(0, 40, 0, 40);
 
-                  Button button = new Button(this);
-                  button.setText("🎤  GAPIRISH");
-                  button.setTextSize(20);
+                  Button speak = new Button(this);
+                  speak.setText("🎤 GAPIRISH");
+                  speak.setTextSize(20);
 
-                  layout.addView(status);
-                  layout.addView(answer);
-                  layout.addView(button);
+                  root.addView(status);
+                  root.addView(answer);
+                  root.addView(speak);
 
-                  setContentView(layout);
+                  setContentView(root);
 
                   tts = new TextToSpeech(this, result -> {
                       if (result == TextToSpeech.SUCCESS) {
                           tts.setLanguage(Locale.US);
-                          speak("JARVIS online.");
+                          say("JARVIS online.");
                       }
                   });
 
-                  button.setOnClickListener(v -> listen());
+                  speak.setOnClickListener(v -> listen());
 
                   if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
                           != PackageManager.PERMISSION_GRANTED) {
+
                       requestPermissions(
                               new String[]{Manifest.permission.RECORD_AUDIO},
                               100
@@ -186,32 +192,36 @@ jobs:
               }
 
               private void listen() {
+
                   if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-                      speak("Speech recognition is not available.");
+                      say("Speech recognition is not available.");
                       return;
                   }
 
                   status.setText("LISTENING...");
 
-                  recognizer = SpeechRecognizer.createSpeechRecognizer(this);
+                  SpeechRecognizer recognizer =
+                          SpeechRecognizer.createSpeechRecognizer(this);
 
                   recognizer.setRecognitionListener(
                           new android.speech.RecognitionListener() {
 
                       @Override
-                      public void onResults(Bundle bundle) {
-                          ArrayList<String> list =
-                                  bundle.getStringArrayList(
+                      public void onResults(Bundle data) {
+
+                          ArrayList<String> results =
+                                  data.getStringArrayList(
                                           SpeechRecognizer.RESULTS_RECOGNITION
                                   );
 
-                          if (list != null && !list.isEmpty()) {
-                              String command = list.get(0);
-                              answer.setText(command);
-                              command(command);
+                          if (results != null && !results.isEmpty()) {
+                              String text = results.get(0);
+                              answer.setText(text);
+                              command(text);
                           }
 
                           status.setText("J.A.R.V.I.S ONLINE");
+                          recognizer.destroy();
                       }
 
                       @Override public void onReadyForSpeech(Bundle b) {}
@@ -220,18 +230,18 @@ jobs:
                       @Override public void onBufferReceived(byte[] b) {}
                       @Override public void onEndOfSpeech() {}
                       @Override public void onPartialResults(Bundle b) {}
-                      @Override public void onEvent(int i, Bundle b) {}
+                      @Override public void onEvent(int a, Bundle b) {}
 
                       @Override
                       public void onError(int error) {
                           status.setText("J.A.R.V.I.S ONLINE");
-                          speak("I did not understand.");
+                          say("I did not understand.");
+                          recognizer.destroy();
                       }
                   });
 
-                  Intent intent = new Intent(
-                          RecognizerIntent.ACTION_RECOGNIZE_SPEECH
-                  );
+                  Intent intent =
+                          new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
 
                   intent.putExtra(
                           RecognizerIntent.EXTRA_LANGUAGE_MODEL,
@@ -243,42 +253,38 @@ jobs:
                           Locale.getDefault()
                   );
 
-                  intent.putExtra(
-                          RecognizerIntent.EXTRA_PROMPT,
-                          "Speak to JARVIS"
-                  );
-
                   recognizer.startListening(intent);
               }
 
               private void command(String text) {
+
                   String c = text.toLowerCase(Locale.ROOT);
 
                   if (c.contains("salom") || c.contains("hello")) {
-                      speak("Hello. How can I help you?");
+                      say("Hello. How can I help you?");
                   }
 
                   else if (c.contains("isming") ||
                            c.contains("your name")) {
-                      speak("My name is JARVIS.");
+                      say("My name is JARVIS.");
                   }
 
                   else if (c.contains("soat") ||
                            c.contains("vaqt") ||
                            c.contains("time")) {
 
-                      SimpleDateFormat format =
+                      SimpleDateFormat f =
                               new SimpleDateFormat(
                                       "HH:mm",
                                       Locale.getDefault()
                               );
 
-                      speak("The time is " +
-                              format.format(new Date()));
+                      say("The time is " + f.format(new Date()));
                   }
 
                   else if (c.contains("youtube")) {
-                      speak("Opening YouTube.");
+
+                      say("Opening YouTube.");
 
                       startActivity(new Intent(
                               Intent.ACTION_VIEW,
@@ -289,7 +295,7 @@ jobs:
                   else if (c.contains("google") ||
                            c.contains("internet")) {
 
-                      speak("Opening Google.");
+                      say("Opening Google.");
 
                       startActivity(new Intent(
                               Intent.ACTION_VIEW,
@@ -300,7 +306,7 @@ jobs:
                   else if (c.contains("kamera") ||
                            c.contains("camera")) {
 
-                      speak("Opening camera.");
+                      say("Opening camera.");
 
                       startActivity(new Intent(
                               "android.media.action.IMAGE_CAPTURE"
@@ -308,11 +314,12 @@ jobs:
                   }
 
                   else {
-                      speak("I heard you say: " + text);
+                      say("I heard you say: " + text);
                   }
               }
 
-              private void speak(String text) {
+              private void say(String text) {
+
                   answer.setText(text);
 
                   if (tts != null) {
@@ -327,9 +334,6 @@ jobs:
 
               @Override
               protected void onDestroy() {
-                  if (recognizer != null) {
-                      recognizer.destroy();
-                  }
 
                   if (tts != null) {
                       tts.stop();
@@ -345,34 +349,36 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Generate Gradle Wrapper
-        run: gradle wrapper --gradle-version 8.11.1
+        run: gradle wrapper --gradle-version 8.9
 
-      - name: Build signed debug APK
+      - name: Build APK
         run: ./gradlew clean assembleDebug
 
-      - name: Verify APK
+      - name: Verify and sign APK
         run: |
           APK="app/build/outputs/apk/debug/app-debug.apk"
 
-          echo "===== APK INFO ====="
+          echo "APK:"
           ls -lh "$APK"
-          file "$APK"
 
-          echo "===== APK CONTENT TEST ====="
-          unzip -t "$APK" > /dev/null
+          echo "Testing APK archive..."
+          unzip -t "$APK" >/dev/null
 
-          echo "===== APK SHA256 ====="
-          sha256sum "$APK"
+          echo "Finding apksigner..."
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
 
-          echo "===== APK SIZE ====="
-          stat -c%s "$APK"
+          echo "apksigner: $APKSIGNER"
 
-          test -s "$APK"
+          "$APKSIGNER" verify --verbose "$APK"
 
-          echo "APK BUILD AND ZIP TEST SUCCESSFUL"
+          echo "APK IS VALID AND SIGNED"
 
-      - name: Upload APK
+      - name: Rename APK
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk JARVIS.apk
+
+      - name: Upload JARVIS APK
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-Fixed-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: JARVIS-APK
+          path: JARVIS.apk
