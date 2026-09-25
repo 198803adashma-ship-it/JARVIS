@@ -25,7 +25,6 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
           ls -la "$ANDROID_SDK_ROOT"
-          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --version
 
       - name: Install Android SDK packages
         run: |
@@ -47,8 +46,22 @@ jobs:
 
       - name: Check APK
         run: |
-          ls -lh app/build/outputs/apk/debug/
-          file app/build/outputs/apk/debug/app-debug.apk
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+
+          echo "=== APK SIZE ==="
+          ls -lh "$APK"
+
+          echo "=== APK TYPE ==="
+          file "$APK"
+
+          echo "=== APK CONTENT ==="
+          unzip -l "$APK" | head -30
+
+          echo "=== APK SIGNATURE ==="
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+
+          echo "=== APK INFO ==="
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK" | head -20
 
       - name: Upload JARVIS APK
         uses: actions/upload-artifact@v4
