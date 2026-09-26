@@ -5,10 +5,13 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.view.Gravity;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -31,6 +34,7 @@ public class MainActivity extends Activity {
 
     private TextView chat;
     private EditText input;
+    private TextView status;
     private TextToSpeech tts;
     private SharedPreferences settings;
 
@@ -43,6 +47,9 @@ public class MainActivity extends Activity {
     private static final String GROQ_MODEL =
             "openai/gpt-oss-20b";
 
+    private int cyan = Color.rgb(0, 220, 255);
+    private int dark = Color.rgb(3, 8, 15);
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -54,17 +61,21 @@ public class MainActivity extends Activity {
 
         buildInterface();
 
-        tts = new TextToSpeech(this, status -> {
-            if (status == TextToSpeech.SUCCESS) {
-                int result = tts.setLanguage(
+        tts = new TextToSpeech(this, result -> {
+            if (result == TextToSpeech.SUCCESS) {
+
+                int language = tts.setLanguage(
                         new Locale("uz", "UZ")
                 );
 
-                if (result == TextToSpeech.LANG_MISSING_DATA ||
-                        result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                if (language == TextToSpeech.LANG_MISSING_DATA ||
+                        language == TextToSpeech.LANG_NOT_SUPPORTED) {
 
                     tts.setLanguage(Locale.US);
                 }
+
+                tts.setSpeechRate(0.90f);
+                tts.setPitch(1.0f);
             }
         });
 
@@ -81,31 +92,171 @@ public class MainActivity extends Activity {
         }
     }
 
+    private GradientDrawable background(
+            int color,
+            int radius,
+            int strokeColor
+    ) {
+        GradientDrawable drawable =
+                new GradientDrawable();
+
+        drawable.setColor(color);
+        drawable.setCornerRadius(radius);
+        drawable.setStroke(2, strokeColor);
+
+        return drawable;
+    }
+
     private void buildInterface() {
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(24, 30, 24, 20);
+        LinearLayout root =
+                new LinearLayout(this);
 
-        TextView title = new TextView(this);
-        title.setText("🤖 JARVIS");
-        title.setTextSize(30);
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 10, 0, 25);
-
-        root.addView(title);
-
-        ScrollView scroll = new ScrollView(this);
-
-        chat = new TextView(this);
-
-        chat.setText(
-                "JARVIS tayyor.\n\n" +
-                "Assalomu alaykum! Men sizning AI yordamchingizman.\n\n"
+        root.setOrientation(
+                LinearLayout.VERTICAL
         );
 
-        chat.setTextSize(18);
-        chat.setPadding(10, 10, 10, 10);
+        root.setPadding(
+                22,
+                30,
+                22,
+                20
+        );
+
+        root.setBackgroundColor(dark);
+
+        // HEADER
+
+        TextView title =
+                new TextView(this);
+
+        title.setText("J A R V I S");
+        title.setTextColor(cyan);
+        title.setTextSize(28);
+        title.setGravity(Gravity.CENTER);
+        title.setLetterSpacing(0.18f);
+
+        root.addView(
+                title,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        65
+                )
+        );
+
+        status =
+                new TextView(this);
+
+        status.setText(
+                "● ONLINE  |  GROQ AI"
+        );
+
+        status.setTextColor(
+                Color.rgb(0, 255, 150)
+        );
+
+        status.setTextSize(13);
+        status.setGravity(Gravity.CENTER);
+
+        root.addView(
+                status,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        35
+                )
+        );
+
+        // AI ORB
+
+        TextView orb =
+                new TextView(this);
+
+        orb.setText("◉");
+        orb.setTextColor(cyan);
+        orb.setTextSize(76);
+        orb.setGravity(Gravity.CENTER);
+
+        orb.setBackground(
+                background(
+                        Color.rgb(5, 20, 30),
+                        300,
+                        cyan
+                )
+        );
+
+        LinearLayout.LayoutParams orbParams =
+                new LinearLayout.LayoutParams(
+                        190,
+                        190
+                );
+
+        orbParams.gravity =
+                Gravity.CENTER;
+
+        orbParams.setMargins(
+                0,
+                15,
+                0,
+                20
+        );
+
+        root.addView(
+                orb,
+                orbParams
+        );
+
+        TextView ready =
+                new TextView(this);
+
+        ready.setText(
+                "JARVIS SYSTEM READY"
+        );
+
+        ready.setTextColor(cyan);
+        ready.setTextSize(14);
+        ready.setGravity(Gravity.CENTER);
+        ready.setLetterSpacing(0.12f);
+
+        root.addView(
+                ready,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        35
+                )
+        );
+
+        // CHAT
+
+        ScrollView scroll =
+                new ScrollView(this);
+
+        chat =
+                new TextView(this);
+
+        chat.setText(
+                "JARVIS: Assalomu alaykum.\n" +
+                "Men ishga tayyorman.\n\n"
+        );
+
+        chat.setTextColor(
+                Color.rgb(220, 245, 255)
+        );
+
+        chat.setTextSize(17);
+        chat.setPadding(
+                15,
+                15,
+                15,
+                15
+        );
+
+        chat.setBackground(
+                background(
+                        Color.rgb(5, 12, 20),
+                        25,
+                        Color.rgb(0, 90, 120)
+                )
+        );
 
         scroll.addView(chat);
 
@@ -118,29 +269,113 @@ public class MainActivity extends Activity {
                 )
         );
 
-        input = new EditText(this);
-        input.setHint("JARVISga savol yozing...");
-        input.setTextSize(17);
+        // INPUT
 
-        root.addView(input);
+        input =
+                new EditText(this);
 
-        LinearLayout buttons = new LinearLayout(this);
-        buttons.setOrientation(LinearLayout.HORIZONTAL);
+        input.setHint(
+                "JARVISga buyruq bering..."
+        );
 
-        Button send = new Button(this);
-        send.setText("Yuborish");
+        input.setHintTextColor(
+                Color.rgb(100, 140, 155)
+        );
 
-        Button voice = new Button(this);
-        voice.setText("🎙 Ovoz");
+        input.setTextColor(Color.WHITE);
+        input.setTextSize(16);
 
-        Button settingsButton = new Button(this);
-        settingsButton.setText("⚙️");
+        input.setSingleLine(true);
+
+        input.setPadding(
+                20,
+                5,
+                20,
+                5
+        );
+
+        input.setBackground(
+                background(
+                        Color.rgb(8, 18, 28),
+                        40,
+                        Color.rgb(0, 150, 190)
+                )
+        );
+
+        LinearLayout.LayoutParams inputParams =
+                new LinearLayout.LayoutParams(
+                        -1,
+                        58
+                );
+
+        inputParams.setMargins(
+                0,
+                12,
+                0,
+                10
+        );
+
+        root.addView(
+                input,
+                inputParams
+        );
+
+        // BUTTONS
+
+        LinearLayout buttons =
+                new LinearLayout(this);
+
+        buttons.setOrientation(
+                LinearLayout.HORIZONTAL
+        );
+
+        Button send =
+                new Button(this);
+
+        send.setText("YUBORISH");
+        send.setTextColor(cyan);
+        send.setTextSize(12);
+        send.setBackground(
+                background(
+                        Color.rgb(5, 25, 35),
+                        35,
+                        cyan
+                )
+        );
+
+        Button voice =
+                new Button(this);
+
+        voice.setText("🎙 OVOZ");
+        voice.setTextColor(cyan);
+        voice.setTextSize(12);
+        voice.setBackground(
+                background(
+                        Color.rgb(5, 25, 35),
+                        35,
+                        cyan
+                )
+        );
+
+        Button settingsButton =
+                new Button(this);
+
+        settingsButton.setText("⚙");
+        settingsButton.setTextColor(cyan);
+        settingsButton.setTextSize(20);
+        settingsButton.setBackground(
+                background(
+                        Color.rgb(5, 25, 35),
+                        35,
+                        cyan
+                )
+        );
 
         buttons.addView(
                 send,
                 new LinearLayout.LayoutParams(
                         0,
-                        -2,
+                        58,
                         1
                 )
         );
@@ -149,20 +384,30 @@ public class MainActivity extends Activity {
                 voice,
                 new LinearLayout.LayoutParams(
                         0,
-                        -2,
+                        58,
                         1
                 )
         );
 
-        buttons.addView(settingsButton);
+        buttons.addView(
+                settingsButton,
+                new LinearLayout.LayoutParams(
+                        70,
+                        58
+                )
+        );
 
         root.addView(buttons);
 
         setContentView(root);
 
-        send.setOnClickListener(v -> sendMessage());
+        send.setOnClickListener(
+                v -> sendMessage()
+        );
 
-        voice.setOnClickListener(v -> startVoice());
+        voice.setOnClickListener(
+                v -> startVoice()
+        );
 
         settingsButton.setOnClickListener(
                 v -> openSettings()
@@ -172,32 +417,46 @@ public class MainActivity extends Activity {
     private void sendMessage() {
 
         String question =
-                input.getText().toString().trim();
+                input.getText()
+                        .toString()
+                        .trim();
 
         if (question.isEmpty()) {
             return;
         }
 
-        addMessage("Siz: " + question);
+        addMessage(
+                "\nSIZ:\n" +
+                question +
+                "\n"
+        );
 
         input.setText("");
 
         String apiKey =
-                settings.getString("api_key", "");
+                settings.getString(
+                        "api_key",
+                        ""
+                );
 
         if (apiKey.isEmpty()) {
 
             String answer =
-                    "Groq API kaliti hali kiritilmagan.\n\n" +
-                    "⚙️ tugmasini bosib Groq API kalitini kiriting.";
+                    "Groq API kaliti kiritilmagan.";
 
-            addMessage("JARVIS: " + answer);
+            addMessage(
+                    "\nJARVIS:\n" +
+                    answer +
+                    "\n"
+            );
+
             speak(answer);
-
             return;
         }
 
-        addMessage("🧠 Groq AI ishlayapti...");
+        status.setText(
+                "● THINKING..."
+        );
 
         new Thread(() -> {
 
@@ -205,24 +464,32 @@ public class MainActivity extends Activity {
 
             try {
 
-                answer = askGroq(
-                        question,
-                        apiKey
-                );
+                answer =
+                        askGroq(
+                                question,
+                                apiKey
+                        );
 
             } catch (Exception e) {
 
                 answer =
-                        "Groq bilan ulanishda xatolik:\n\n" +
+                        "Xatolik: " +
                         e.getMessage();
             }
 
-            final String finalAnswer = answer;
+            String finalAnswer =
+                    answer;
 
             runOnUiThread(() -> {
 
+                status.setText(
+                        "● ONLINE  |  GROQ AI"
+                );
+
                 addMessage(
-                        "JARVIS: " + finalAnswer
+                        "\nJARVIS:\n" +
+                        finalAnswer +
+                        "\n"
                 );
 
                 speak(finalAnswer);
@@ -236,10 +503,12 @@ public class MainActivity extends Activity {
             String apiKey
     ) throws Exception {
 
-        URL url = new URL(GROQ_ENDPOINT);
+        URL url =
+                new URL(GROQ_ENDPOINT);
 
         HttpURLConnection connection =
-                (HttpURLConnection) url.openConnection();
+                (HttpURLConnection)
+                        url.openConnection();
 
         connection.setRequestMethod("POST");
 
@@ -253,35 +522,44 @@ public class MainActivity extends Activity {
                 "application/json"
         );
 
-        connection.setConnectTimeout(20000);
-        connection.setReadTimeout(60000);
+        connection.setConnectTimeout(
+                20000
+        );
+
+        connection.setReadTimeout(
+                60000
+        );
 
         connection.setDoOutput(true);
 
-        JSONObject systemMessage =
+        JSONObject system =
                 new JSONObject();
 
-        systemMessage.put(
+        system.put(
                 "role",
                 "system"
         );
 
-        systemMessage.put(
+        system.put(
                 "content",
-                "You are JARVIS, a helpful AI assistant. " +
-                "Always answer the user in Uzbek when possible. " +
-                "Be concise, friendly and useful."
+                "Sen JARVIS nomli aqlli yordamchisan. " +
+                "Foydalanuvchiga imkon qadar ravon, " +
+                "tabiiy va tushunarli o'zbek tilida javob ber. " +
+                "Javoblarni keraksiz cho'zma. " +
+                "Ovoz orqali o'qilganda tabiiy eshitilishi uchun " +
+                "murakkab belgilar, emoji va ortiqcha formatlardan " +
+                "foydalanma."
         );
 
-        JSONObject userMessage =
+        JSONObject user =
                 new JSONObject();
 
-        userMessage.put(
+        user.put(
                 "role",
                 "user"
         );
 
-        userMessage.put(
+        user.put(
                 "content",
                 question
         );
@@ -289,8 +567,8 @@ public class MainActivity extends Activity {
         JSONArray messages =
                 new JSONArray();
 
-        messages.put(systemMessage);
-        messages.put(userMessage);
+        messages.put(system);
+        messages.put(user);
 
         JSONObject body =
                 new JSONObject();
@@ -326,7 +604,8 @@ public class MainActivity extends Activity {
 
         BufferedReader reader;
 
-        if (code >= 200 && code < 300) {
+        if (code >= 200 &&
+                code < 300) {
 
             reader =
                     new BufferedReader(
@@ -350,17 +629,23 @@ public class MainActivity extends Activity {
 
         String line;
 
-        while ((line = reader.readLine()) != null) {
+        while (
+                (line = reader.readLine())
+                        != null
+        ) {
+
             response.append(line);
         }
 
         reader.close();
 
-        if (code < 200 || code >= 300) {
+        if (code < 200 ||
+                code >= 300) {
 
-            return "Groq HTTP xatosi: " +
+            return
+                    "Groq xatosi " +
                     code +
-                    "\n\n" +
+                    ": " +
                     response;
         }
 
@@ -369,23 +654,19 @@ public class MainActivity extends Activity {
                         response.toString()
                 );
 
-        JSONArray choices =
-                result.getJSONArray("choices");
-
-        JSONObject first =
-                choices.getJSONObject(0);
-
-        JSONObject message =
-                first.getJSONObject("message");
-
-        return message.getString("content");
+        return result
+                .getJSONArray("choices")
+                .getJSONObject(0)
+                .getJSONObject("message")
+                .getString("content");
     }
 
     private void startVoice() {
 
         Intent intent =
                 new Intent(
-                        RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+                        RecognizerIntent
+                                .ACTION_RECOGNIZE_SPEECH
                 );
 
         intent.putExtra(
@@ -395,7 +676,8 @@ public class MainActivity extends Activity {
 
         intent.putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                RecognizerIntent
+                        .LANGUAGE_MODEL_FREE_FORM
         );
 
         intent.putExtra(
@@ -414,7 +696,7 @@ public class MainActivity extends Activity {
 
             Toast.makeText(
                     this,
-                    "Ovozli qidiruv mavjud emas",
+                    "Ovozli xizmat mavjud emas",
                     Toast.LENGTH_SHORT
             ).show();
         }
@@ -433,17 +715,21 @@ public class MainActivity extends Activity {
                 data
         );
 
-        if (requestCode == VOICE_REQUEST &&
+        if (
+                requestCode == VOICE_REQUEST &&
                 resultCode == RESULT_OK &&
-                data != null) {
+                data != null
+        ) {
 
             ArrayList<String> results =
                     data.getStringArrayListExtra(
                             RecognizerIntent.EXTRA_RESULTS
                     );
 
-            if (results != null &&
-                    !results.isEmpty()) {
+            if (
+                    results != null &&
+                    !results.isEmpty()
+            ) {
 
                 input.setText(
                         results.get(0)
@@ -454,14 +740,30 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void addMessage(String message) {
+    private void addMessage(
+            String message
+    ) {
 
-        chat.append(
-                "\n" + message + "\n"
-        );
+        chat.append(message);
+
+        chat.post(() -> {
+
+            View parent =
+                    (View) chat.getParent();
+
+            if (parent instanceof ScrollView) {
+
+                ((ScrollView) parent)
+                        .fullScroll(
+                                View.FOCUS_DOWN
+                        );
+            }
+        });
     }
 
-    private void speak(String text) {
+    private void speak(
+            String text
+    ) {
 
         if (tts != null) {
 
@@ -469,7 +771,7 @@ public class MainActivity extends Activity {
                     text,
                     TextToSpeech.QUEUE_FLUSH,
                     null,
-                    "jarvis"
+                    "jarvis_voice"
             );
         }
     }
@@ -485,19 +787,24 @@ public class MainActivity extends Activity {
 
         layout.setPadding(
                 30,
-                30,
+                40,
                 30,
                 30
         );
+
+        layout.setBackgroundColor(dark);
 
         TextView title =
                 new TextView(this);
 
         title.setText(
-                "JARVIS — Groq sozlamalari"
+                "JARVIS SETTINGS"
         );
 
-        title.setTextSize(22);
+        title.setTextColor(cyan);
+        title.setTextSize(25);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, 25);
 
         EditText key =
                 new EditText(this);
@@ -506,14 +813,19 @@ public class MainActivity extends Activity {
                 "Groq API Key"
         );
 
+        key.setTextColor(Color.WHITE);
+        key.setHintTextColor(
+                Color.GRAY
+        );
+
+        key.setSingleLine(true);
+
         key.setText(
                 settings.getString(
                         "api_key",
                         ""
                 )
         );
-
-        key.setSingleLine(true);
 
         EditText endpoint =
                 new EditText(this);
@@ -522,11 +834,13 @@ public class MainActivity extends Activity {
                 "API Endpoint"
         );
 
+        endpoint.setTextColor(Color.WHITE);
+
+        endpoint.setSingleLine(true);
+
         endpoint.setText(
                 GROQ_ENDPOINT
         );
-
-        endpoint.setSingleLine(true);
 
         EditText model =
                 new EditText(this);
@@ -535,18 +849,22 @@ public class MainActivity extends Activity {
                 "Model"
         );
 
+        model.setTextColor(Color.WHITE);
+
+        model.setSingleLine(true);
+
         model.setText(
                 GROQ_MODEL
         );
-
-        model.setSingleLine(true);
 
         Button save =
                 new Button(this);
 
         save.setText(
-                "Saqlash"
+                "SAQLASH"
         );
+
+        save.setTextColor(cyan);
 
         layout.addView(title);
         layout.addView(key);
@@ -561,13 +879,15 @@ public class MainActivity extends Activity {
             settings.edit()
                     .putString(
                             "api_key",
-                            key.getText().toString().trim()
+                            key.getText()
+                                    .toString()
+                                    .trim()
                     )
                     .apply();
 
             Toast.makeText(
                     this,
-                    "Groq API saqlandi",
+                    "Sozlamalar saqlandi",
                     Toast.LENGTH_SHORT
             ).show();
 
@@ -579,6 +899,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
 
         if (tts != null) {
+
             tts.stop();
             tts.shutdown();
         }
