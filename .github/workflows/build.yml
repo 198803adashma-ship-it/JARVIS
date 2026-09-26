@@ -14,22 +14,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          accept-android-sdk-licenses: 'yes'
+          log-accepted-android-sdk-licenses: 'false'
 
-      - name: Install Android SDK
+      - name: Install Android SDK packages
         run: |
           sdkmanager "platform-tools"
           sdkmanager "platforms;android-35"
           sdkmanager "build-tools;35.0.0"
-          yes | sdkmanager --licenses || true
 
       - name: Install Gradle
         run: |
@@ -37,7 +39,7 @@ jobs:
           unzip -q gradle-8.10.2-bin.zip
           echo "$PWD/gradle-8.10.2/bin" >> "$GITHUB_PATH"
 
-      - name: Build Debug APK
+      - name: Build JARVIS APK
         run: |
           gradle clean assembleDebug --stacktrace
 
@@ -47,19 +49,17 @@ jobs:
 
           test -f "$APK"
 
-          echo "================================"
-          echo "JARVIS APK"
-          echo "================================"
-
+          echo "=== APK SIZE ==="
           ls -lh "$APK"
 
+          echo "=== APK TYPE ==="
           file "$APK"
 
-          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" \
-            verify --verbose "$APK"
+          echo "=== APK SIGNATURE ==="
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose "$APK"
 
-          "$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt" \
-            dump badging "$APK" | head -20
+          echo "=== APK INFO ==="
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK" | head -20
 
       - name: Upload JARVIS APK
         uses: actions/upload-artifact@v4
