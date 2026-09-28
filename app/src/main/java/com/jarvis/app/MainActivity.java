@@ -10,6 +10,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.Voice;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -61,23 +62,7 @@ public class MainActivity extends Activity {
 
         buildInterface();
 
-        tts = new TextToSpeech(this, result -> {
-            if (result == TextToSpeech.SUCCESS) {
-
-                int language = tts.setLanguage(
-                        new Locale("uz", "UZ")
-                );
-
-                if (language == TextToSpeech.LANG_MISSING_DATA ||
-                        language == TextToSpeech.LANG_NOT_SUPPORTED) {
-
-                    tts.setLanguage(Locale.US);
-                }
-
-                tts.setSpeechRate(0.90f);
-                tts.setPitch(1.0f);
-            }
-        });
+        initVoice();
 
         if (checkSelfPermission(
                 Manifest.permission.RECORD_AUDIO
@@ -92,11 +77,109 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void initVoice() {
+
+        tts = new TextToSpeech(this, result -> {
+
+            if (result != TextToSpeech.SUCCESS) {
+                return;
+            }
+
+            boolean femaleFound = false;
+
+            try {
+                for (Voice voice : tts.getVoices()) {
+
+                    if (voice == null) {
+                        continue;
+                    }
+
+                    Locale locale = voice.getLocale();
+
+                    if (locale == null) {
+                        continue;
+                    }
+
+                    String language =
+                            locale.getLanguage();
+
+                    String country =
+                            locale.getCountry();
+
+                    String name =
+                            voice.getName()
+                                    .toLowerCase(Locale.US);
+
+                    boolean uzbek =
+                            language.equalsIgnoreCase("uz");
+
+                    boolean female =
+                            name.contains("female") ||
+                            name.contains("woman") ||
+                            name.contains("zira") ||
+                            name.contains("madina") ||
+                            name.contains("dilnoza");
+
+                    if (uzbek && female) {
+
+                        tts.setVoice(voice);
+                        femaleFound = true;
+                        break;
+                    }
+                }
+
+                if (!femaleFound) {
+
+                    for (Voice voice : tts.getVoices()) {
+
+                        if (voice == null) {
+                            continue;
+                        }
+
+                        Locale locale =
+                                voice.getLocale();
+
+                        if (locale == null) {
+                            continue;
+                        }
+
+                        if (locale.getLanguage()
+                                .equalsIgnoreCase("uz")) {
+
+                            tts.setVoice(voice);
+                            break;
+                        }
+                    }
+                }
+
+            } catch (Exception ignored) {
+            }
+
+            int language =
+                    tts.setLanguage(
+                            new Locale("uz", "UZ")
+                    );
+
+            if (language == TextToSpeech.LANG_MISSING_DATA ||
+                    language == TextToSpeech.LANG_NOT_SUPPORTED) {
+
+                tts.setLanguage(
+                        new Locale("uz")
+                );
+            }
+
+            // Tabiiyroq va yumshoqroq ovoz
+            tts.setSpeechRate(0.82f);
+            tts.setPitch(1.05f);
+        });
+    }
+
     private GradientDrawable background(
             int color,
             int radius,
             int strokeColor
     ) {
+
         GradientDrawable drawable =
                 new GradientDrawable();
 
@@ -124,8 +207,6 @@ public class MainActivity extends Activity {
         );
 
         root.setBackgroundColor(dark);
-
-        // HEADER
 
         TextView title =
                 new TextView(this);
@@ -166,8 +247,6 @@ public class MainActivity extends Activity {
                 )
         );
 
-        // AI ORB
-
         TextView orb =
                 new TextView(this);
 
@@ -190,8 +269,7 @@ public class MainActivity extends Activity {
                         190
                 );
 
-        orbParams.gravity =
-                Gravity.CENTER;
+        orbParams.gravity = Gravity.CENTER;
 
         orbParams.setMargins(
                 0,
@@ -225,8 +303,6 @@ public class MainActivity extends Activity {
                 )
         );
 
-        // CHAT
-
         ScrollView scroll =
                 new ScrollView(this);
 
@@ -243,6 +319,7 @@ public class MainActivity extends Activity {
         );
 
         chat.setTextSize(17);
+
         chat.setPadding(
                 15,
                 15,
@@ -269,8 +346,6 @@ public class MainActivity extends Activity {
                 )
         );
 
-        // INPUT
-
         input =
                 new EditText(this);
 
@@ -284,7 +359,6 @@ public class MainActivity extends Activity {
 
         input.setTextColor(Color.WHITE);
         input.setTextSize(16);
-
         input.setSingleLine(true);
 
         input.setPadding(
@@ -320,8 +394,6 @@ public class MainActivity extends Activity {
                 inputParams
         );
 
-        // BUTTONS
-
         LinearLayout buttons =
                 new LinearLayout(this);
 
@@ -335,6 +407,7 @@ public class MainActivity extends Activity {
         send.setText("YUBORISH");
         send.setTextColor(cyan);
         send.setTextSize(12);
+
         send.setBackground(
                 background(
                         Color.rgb(5, 25, 35),
@@ -349,6 +422,7 @@ public class MainActivity extends Activity {
         voice.setText("🎙 OVOZ");
         voice.setTextColor(cyan);
         voice.setTextSize(12);
+
         voice.setBackground(
                 background(
                         Color.rgb(5, 25, 35),
@@ -363,6 +437,7 @@ public class MainActivity extends Activity {
         settingsButton.setText("⚙");
         settingsButton.setTextColor(cyan);
         settingsButton.setTextSize(20);
+
         settingsButton.setBackground(
                 background(
                         Color.rgb(5, 25, 35),
@@ -543,12 +618,12 @@ public class MainActivity extends Activity {
         system.put(
                 "content",
                 "Sen JARVIS nomli aqlli yordamchisan. " +
-                "Foydalanuvchiga imkon qadar ravon, " +
-                "tabiiy va tushunarli o'zbek tilida javob ber. " +
-                "Javoblarni keraksiz cho'zma. " +
-                "Ovoz orqali o'qilganda tabiiy eshitilishi uchun " +
-                "murakkab belgilar, emoji va ortiqcha formatlardan " +
-                "foydalanma."
+                "Faqat tabiiy va ravon o'zbek tilida javob ber. " +
+                "Gaplarni qisqa va aniq tuz. " +
+                "Ovoz chiqarib o'qilganda insondek tabiiy eshitilsin. " +
+                "Emoji ishlatma. " +
+                "Maxsus belgilar va murakkab formatlardan foydalanma. " +
+                "Inglizcha javob bermaslikka harakat qil."
         );
 
         JSONObject user =
@@ -804,7 +879,13 @@ public class MainActivity extends Activity {
         title.setTextColor(cyan);
         title.setTextSize(25);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 25);
+
+        title.setPadding(
+                0,
+                0,
+                0,
+                25
+        );
 
         EditText key =
                 new EditText(this);
@@ -814,10 +895,7 @@ public class MainActivity extends Activity {
         );
 
         key.setTextColor(Color.WHITE);
-        key.setHintTextColor(
-                Color.GRAY
-        );
-
+        key.setHintTextColor(Color.GRAY);
         key.setSingleLine(true);
 
         key.setText(
@@ -835,7 +913,6 @@ public class MainActivity extends Activity {
         );
 
         endpoint.setTextColor(Color.WHITE);
-
         endpoint.setSingleLine(true);
 
         endpoint.setText(
@@ -850,7 +927,6 @@ public class MainActivity extends Activity {
         );
 
         model.setTextColor(Color.WHITE);
-
         model.setSingleLine(true);
 
         model.setText(
