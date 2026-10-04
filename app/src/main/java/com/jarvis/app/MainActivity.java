@@ -13,6 +13,7 @@ import android.speech.tts.TextToSpeech;
 import android.speech.tts.Voice;
 import android.view.Gravity;
 import android.view.View;
+import android.view.animation.AlphaAnimation;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -34,10 +35,15 @@ import java.util.Locale;
 public class MainActivity extends Activity {
 
     private TextView chat;
-    private EditText input;
     private TextView status;
+    private TextView orb;
+    private EditText input;
+
     private TextToSpeech tts;
     private SharedPreferences settings;
+
+    private boolean ttsReady = false;
+    private boolean speaking = false;
 
     private static final int VOICE_REQUEST = 100;
     private static final int MIC_PERMISSION = 101;
@@ -50,8 +56,7 @@ public class MainActivity extends Activity {
 
     private final int cyan = Color.rgb(0, 220, 255);
     private final int dark = Color.rgb(3, 8, 15);
-
-    private boolean ttsReady = false;
+    private final int green = Color.rgb(0, 255, 150);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +68,6 @@ public class MainActivity extends Activity {
         );
 
         buildInterface();
-
         initVoice();
 
         if (checkSelfPermission(
@@ -79,10 +83,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // =========================
-    // JARVIS OVOZI
-    // =========================
-
     private void initVoice() {
 
         tts = new TextToSpeech(
@@ -93,25 +93,16 @@ public class MainActivity extends Activity {
 
                         ttsReady = false;
 
-                        runOnUiThread(() -> {
-
-                            status.setText(
-                                    "● TTS XATO"
-                            );
-
-                            Toast.makeText(
-                                    MainActivity.this,
-                                    "Telefon ovoz xizmatini ishga tushira olmadi",
-                                    Toast.LENGTH_LONG
-                            ).show();
-                        });
+                        runOnUiThread(() ->
+                                setStatus("● VOICE ERROR")
+                        );
 
                         return;
                     }
 
-                    boolean languageSet = false;
+                    boolean ready = false;
 
-                    // Avval o'zbekcha ovozni qidiramiz
+                    // O'zbek tili
                     try {
 
                         int resultUz =
@@ -119,38 +110,41 @@ public class MainActivity extends Activity {
                                         new Locale("uz", "UZ")
                                 );
 
-                        if (resultUz != TextToSpeech.LANG_MISSING_DATA &&
-                                resultUz != TextToSpeech.LANG_NOT_SUPPORTED) {
+                        if (resultUz !=
+                                TextToSpeech.LANG_MISSING_DATA
+                                &&
+                                resultUz !=
+                                TextToSpeech.LANG_NOT_SUPPORTED) {
 
-                            languageSet = true;
+                            ready = true;
                         }
 
                     } catch (Exception ignored) {
                     }
 
-                    // O'zbekcha mavjud bo'lmasa,
-                    // mavjud ovozlardan birini tanlaymiz
-                    if (!languageSet) {
+                    // O'zbek tili topilmasa,
+                    // telefondagi mavjud ovozni izlaymiz
+                    if (!ready) {
 
                         try {
 
-                            for (Voice voice : tts.getVoices()) {
+                            for (Voice voice :
+                                    tts.getVoices()) {
 
-                                if (voice == null) {
+                                if (voice == null)
                                     continue;
-                                }
 
                                 Locale locale =
                                         voice.getLocale();
 
-                                if (locale == null) {
+                                if (locale == null)
                                     continue;
-                                }
 
-                                if (!voice.isNetworkConnectionRequired()) {
+                                if (!voice
+                                        .isNetworkConnectionRequired()) {
 
                                     tts.setVoice(voice);
-                                    languageSet = true;
+                                    ready = true;
                                     break;
                                 }
                             }
@@ -159,59 +153,58 @@ public class MainActivity extends Activity {
                         }
                     }
 
-                    // Oxirgi zaxira — ingliz tili
-                    if (!languageSet) {
+                    // Oxirgi fallback
+                    if (!ready) {
 
                         try {
 
                             int resultEn =
-                                    tts.setLanguage(Locale.US);
+                                    tts.setLanguage(
+                                            Locale.US
+                                    );
 
                             if (resultEn !=
-                                    TextToSpeech.LANG_MISSING_DATA &&
+                                    TextToSpeech.LANG_MISSING_DATA
+                                    &&
                                     resultEn !=
                                     TextToSpeech.LANG_NOT_SUPPORTED) {
 
-                                languageSet = true;
+                                ready = true;
                             }
 
                         } catch (Exception ignored) {
                         }
                     }
 
-                    tts.setSpeechRate(0.88f);
-                    tts.setPitch(1.05f);
+                    try {
+                        tts.setSpeechRate(0.88f);
+                        tts.setPitch(1.03f);
+                    } catch (Exception ignored) {
+                    }
 
-                    ttsReady = languageSet;
+                    ttsReady = ready;
 
-                    if (languageSet) {
+                    if (ready) {
 
                         runOnUiThread(() -> {
 
-                            status.setText(
+                            setStatus(
                                     "● ONLINE  |  VOICE READY"
                             );
 
-                            // Ovoz test
                             speak(
-                                    "Assalomu alaykum. Men Jarvisman."
+                                    "Assalomu alaykum. " +
+                                    "Men Jarvisman."
                             );
                         });
 
                     } else {
 
-                        runOnUiThread(() -> {
-
-                            status.setText(
-                                    "● TTS OVOZI TOPILMADI"
-                            );
-
-                            Toast.makeText(
-                                    MainActivity.this,
-                                    "Telefonda Text-to-Speech ovozi mavjud emas",
-                                    Toast.LENGTH_LONG
-                            ).show();
-                        });
+                        runOnUiThread(() ->
+                                setStatus(
+                                        "● VOICE NOT AVAILABLE"
+                                )
+                        );
                     }
                 }
         );
@@ -220,24 +213,24 @@ public class MainActivity extends Activity {
     private void speak(String text) {
 
         if (tts == null || !ttsReady) {
-
-            Toast.makeText(
-                    this,
-                    "JARVIS ovozi tayyor emas",
-                    Toast.LENGTH_SHORT
-            ).show();
-
             return;
         }
 
         try {
 
             String cleanText =
-                    text
-                            .replace("*", "")
-                            .replace("#", "")
-                            .replace("`", "")
-                            .trim();
+                    cleanForSpeech(text);
+
+            if (cleanText.isEmpty())
+                return;
+
+            speaking = true;
+
+            runOnUiThread(() ->
+                    setStatus("● SPEAKING...")
+            );
+
+            animateOrb(true);
 
             tts.speak(
                     cleanText,
@@ -246,19 +239,27 @@ public class MainActivity extends Activity {
                     "jarvis_voice"
             );
 
-        } catch (Exception e) {
-
-            Toast.makeText(
-                    this,
-                    "Ovoz chiqarishda xatolik",
-                    Toast.LENGTH_SHORT
-            ).show();
+        } catch (Exception ignored) {
         }
     }
 
-    // =========================
-    // UI
-    // =========================
+    private String cleanForSpeech(String text) {
+
+        if (text == null)
+            return "";
+
+        return text
+                .replace("*", "")
+                .replace("#", "")
+                .replace("`", "")
+                .replace("_", "")
+                .replace("•", "")
+                .replace("—", " ")
+                .replace("–", " ")
+                .replace("\n\n", ". ")
+                .replace("\n", ". ")
+                .trim();
+    }
 
     private GradientDrawable background(
             int color,
@@ -271,7 +272,10 @@ public class MainActivity extends Activity {
 
         drawable.setColor(color);
         drawable.setCornerRadius(radius);
-        drawable.setStroke(2, strokeColor);
+        drawable.setStroke(
+                2,
+                strokeColor
+        );
 
         return drawable;
     }
@@ -287,17 +291,21 @@ public class MainActivity extends Activity {
 
         root.setPadding(
                 22,
-                30,
+                25,
                 22,
-                20
+                18
         );
 
         root.setBackgroundColor(dark);
 
+        // TITLE
         TextView title =
                 new TextView(this);
 
-        title.setText("J A R V I S");
+        title.setText(
+                "J A R V I S"
+        );
+
         title.setTextColor(cyan);
         title.setTextSize(28);
         title.setGravity(Gravity.CENTER);
@@ -307,21 +315,19 @@ public class MainActivity extends Activity {
                 title,
                 new LinearLayout.LayoutParams(
                         -1,
-                        65
+                        60
                 )
         );
 
+        // STATUS
         status =
                 new TextView(this);
 
         status.setText(
-                "● STARTING VOICE..."
+                "● STARTING..."
         );
 
-        status.setTextColor(
-                Color.rgb(0, 255, 150)
-        );
-
+        status.setTextColor(green);
         status.setTextSize(13);
         status.setGravity(Gravity.CENTER);
 
@@ -333,12 +339,13 @@ public class MainActivity extends Activity {
                 )
         );
 
-        TextView orb =
+        // ORB
+        orb =
                 new TextView(this);
 
         orb.setText("◉");
         orb.setTextColor(cyan);
-        orb.setTextSize(76);
+        orb.setTextSize(78);
         orb.setGravity(Gravity.CENTER);
 
         orb.setBackground(
@@ -355,13 +362,14 @@ public class MainActivity extends Activity {
                         190
                 );
 
-        orbParams.gravity = Gravity.CENTER;
+        orbParams.gravity =
+                Gravity.CENTER;
 
         orbParams.setMargins(
                 0,
-                15,
+                10,
                 0,
-                20
+                15
         );
 
         root.addView(
@@ -369,6 +377,7 @@ public class MainActivity extends Activity {
                 orbParams
         );
 
+        // READY TEXT
         TextView ready =
                 new TextView(this);
 
@@ -385,10 +394,11 @@ public class MainActivity extends Activity {
                 ready,
                 new LinearLayout.LayoutParams(
                         -1,
-                        35
+                        32
                 )
         );
 
+        // CHAT
         ScrollView scroll =
                 new ScrollView(this);
 
@@ -401,11 +411,14 @@ public class MainActivity extends Activity {
         );
 
         chat.setTextColor(
-                Color.rgb(220, 245, 255)
+                Color.rgb(
+                        220,
+                        245,
+                        255
+                )
         );
 
         chat.setTextSize(17);
-
         chat.setPadding(
                 15,
                 15,
@@ -415,9 +428,17 @@ public class MainActivity extends Activity {
 
         chat.setBackground(
                 background(
-                        Color.rgb(5, 12, 20),
+                        Color.rgb(
+                                5,
+                                12,
+                                20
+                        ),
                         25,
-                        Color.rgb(0, 90, 120)
+                        Color.rgb(
+                                0,
+                                90,
+                                120
+                        )
                 )
         );
 
@@ -432,6 +453,7 @@ public class MainActivity extends Activity {
                 )
         );
 
+        // INPUT
         input =
                 new EditText(this);
 
@@ -440,7 +462,11 @@ public class MainActivity extends Activity {
         );
 
         input.setHintTextColor(
-                Color.rgb(100, 140, 155)
+                Color.rgb(
+                        100,
+                        140,
+                        155
+                )
         );
 
         input.setTextColor(Color.WHITE);
@@ -456,9 +482,17 @@ public class MainActivity extends Activity {
 
         input.setBackground(
                 background(
-                        Color.rgb(8, 18, 28),
+                        Color.rgb(
+                                8,
+                                18,
+                                28
+                        ),
                         40,
-                        Color.rgb(0, 150, 190)
+                        Color.rgb(
+                                0,
+                                150,
+                                190
+                        )
                 )
         );
 
@@ -470,7 +504,7 @@ public class MainActivity extends Activity {
 
         inputParams.setMargins(
                 0,
-                12,
+                10,
                 0,
                 10
         );
@@ -480,6 +514,7 @@ public class MainActivity extends Activity {
                 inputParams
         );
 
+        // BUTTONS
         LinearLayout buttons =
                 new LinearLayout(this);
 
@@ -488,49 +523,15 @@ public class MainActivity extends Activity {
         );
 
         Button send =
-                new Button(this);
-
-        send.setText("YUBORISH");
-        send.setTextColor(cyan);
-        send.setTextSize(12);
-
-        send.setBackground(
-                background(
-                        Color.rgb(5, 25, 35),
-                        35,
-                        cyan
-                )
-        );
+                createButton("YUBORISH");
 
         Button voice =
-                new Button(this);
-
-        voice.setText("🎙 OVOZ");
-        voice.setTextColor(cyan);
-        voice.setTextSize(12);
-
-        voice.setBackground(
-                background(
-                        Color.rgb(5, 25, 35),
-                        35,
-                        cyan
-                )
-        );
+                createButton("🎙 OVOZ");
 
         Button settingsButton =
-                new Button(this);
+                createButton("⚙");
 
-        settingsButton.setText("⚙");
-        settingsButton.setTextColor(cyan);
         settingsButton.setTextSize(20);
-
-        settingsButton.setBackground(
-                background(
-                        Color.rgb(5, 25, 35),
-                        35,
-                        cyan
-                )
-        );
 
         buttons.addView(
                 send,
@@ -575,9 +576,29 @@ public class MainActivity extends Activity {
         );
     }
 
-    // =========================
-    // AI
-    // =========================
+    private Button createButton(String text) {
+
+        Button button =
+                new Button(this);
+
+        button.setText(text);
+        button.setTextColor(cyan);
+        button.setTextSize(12);
+
+        button.setBackground(
+                background(
+                        Color.rgb(
+                                5,
+                                25,
+                                35
+                        ),
+                        35,
+                        cyan
+                )
+        );
+
+        return button;
+    }
 
     private void sendMessage() {
 
@@ -586,9 +607,8 @@ public class MainActivity extends Activity {
                         .toString()
                         .trim();
 
-        if (question.isEmpty()) {
+        if (question.isEmpty())
             return;
-        }
 
         addMessage(
                 "\nSIZ:\n" +
@@ -619,9 +639,8 @@ public class MainActivity extends Activity {
             return;
         }
 
-        status.setText(
-                "● THINKING..."
-        );
+        setStatus("● THINKING...");
+        animateOrb(false);
 
         new Thread(() -> {
 
@@ -638,7 +657,7 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
 
                 answer =
-                        "Xatolik yuz berdi: " +
+                        "Xatolik yuz berdi. " +
                         e.getMessage();
             }
 
@@ -647,7 +666,7 @@ public class MainActivity extends Activity {
 
             runOnUiThread(() -> {
 
-                status.setText(
+                setStatus(
                         "● ONLINE  |  VOICE READY"
                 );
 
@@ -675,7 +694,9 @@ public class MainActivity extends Activity {
                 (HttpURLConnection)
                         url.openConnection();
 
-        connection.setRequestMethod("POST");
+        connection.setRequestMethod(
+                "POST"
+        );
 
         connection.setRequestProperty(
                 "Authorization",
@@ -707,12 +728,18 @@ public class MainActivity extends Activity {
 
         system.put(
                 "content",
-                "Sen JARVIS nomli aqlli yordamchisan. " +
-                "Faqat tabiiy va ravon o'zbek tilida javob ber. " +
-                "Gaplarni qisqa va aniq tuz. " +
-                "Ovoz chiqarib o'qilganda insondek tabiiy eshitilsin. " +
+                "Sen JARVIS nomli aqlli " +
+                "shaxsiy yordamchisan. " +
+                "Faqat tabiiy va ravon " +
+                "o'zbek tilida javob ber. " +
+                "Javobni qisqa, aniq va " +
+                "insondek tabiiy qil. " +
+                "Ovoz chiqarib o'qilganda " +
+                "qulay eshitilsin. " +
                 "Emoji ishlatma. " +
-                "Maxsus belgilar va murakkab formatlardan foydalanma."
+                "Markdown, yulduzcha, " +
+                "xeshteg va murakkab " +
+                "format ishlatma."
         );
 
         JSONObject user =
@@ -774,7 +801,8 @@ public class MainActivity extends Activity {
             reader =
                     new BufferedReader(
                             new InputStreamReader(
-                                    connection.getInputStream()
+                                    connection
+                                            .getInputStream()
                             )
                     );
 
@@ -783,7 +811,8 @@ public class MainActivity extends Activity {
             reader =
                     new BufferedReader(
                             new InputStreamReader(
-                                    connection.getErrorStream()
+                                    connection
+                                            .getErrorStream()
                             )
                     );
         }
@@ -794,7 +823,8 @@ public class MainActivity extends Activity {
         String line;
 
         while (
-                (line = reader.readLine())
+                (line =
+                        reader.readLine())
                         != null
         ) {
 
@@ -809,8 +839,7 @@ public class MainActivity extends Activity {
             return
                     "Groq xatosi " +
                     code +
-                    ": " +
-                    response;
+                    ".";
         }
 
         JSONObject result =
@@ -825,29 +854,36 @@ public class MainActivity extends Activity {
                 .getString("content");
     }
 
-    // =========================
-    // OVOZNI QABUL QILISH
-    // =========================
-
     private void startVoice() {
+
+        setStatus(
+                "● LISTENING..."
+        );
+
+        animateOrb(false);
 
         Intent intent =
                 new Intent(
-                        RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+                        RecognizerIntent
+                                .ACTION_RECOGNIZE_SPEECH
                 );
 
         intent.putExtra(
-                RecognizerIntent.EXTRA_LANGUAGE,
+                RecognizerIntent
+                        .EXTRA_LANGUAGE,
                 "uz-UZ"
         );
 
         intent.putExtra(
-                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                RecognizerIntent
+                        .EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent
+                        .LANGUAGE_MODEL_FREE_FORM
         );
 
         intent.putExtra(
-                RecognizerIntent.EXTRA_PROMPT,
+                RecognizerIntent
+                        .EXTRA_PROMPT,
                 "JARVIS tinglamoqda..."
         );
 
@@ -865,6 +901,10 @@ public class MainActivity extends Activity {
                     "Ovozli xizmat mavjud emas",
                     Toast.LENGTH_SHORT
             ).show();
+
+            setStatus(
+                    "● ONLINE"
+            );
         }
     }
 
@@ -882,18 +922,24 @@ public class MainActivity extends Activity {
         );
 
         if (
-                requestCode == VOICE_REQUEST &&
-                resultCode == RESULT_OK &&
+                requestCode ==
+                        VOICE_REQUEST
+                        &&
+                resultCode ==
+                        RESULT_OK
+                        &&
                 data != null
         ) {
 
             ArrayList<String> results =
                     data.getStringArrayListExtra(
-                            RecognizerIntent.EXTRA_RESULTS
+                            RecognizerIntent
+                                    .EXTRA_RESULTS
                     );
 
             if (
-                    results != null &&
+                    results != null
+                    &&
                     !results.isEmpty()
             ) {
 
@@ -902,13 +948,58 @@ public class MainActivity extends Activity {
                 );
 
                 sendMessage();
+
+            } else {
+
+                setStatus(
+                        "● ONLINE"
+                );
             }
         }
     }
 
-    // =========================
-    // CHAT
-    // =========================
+    private void setStatus(
+            String text
+    ) {
+
+        if (status != null) {
+
+            status.setText(text);
+        }
+    }
+
+    private void animateOrb(
+            boolean active
+    ) {
+
+        if (orb == null)
+            return;
+
+        if (active) {
+
+            AlphaAnimation animation =
+                    new AlphaAnimation(
+                            0.35f,
+                            1.0f
+                    );
+
+            animation.setDuration(500);
+            animation.setRepeatMode(
+                    AlphaAnimation.REVERSE
+            );
+
+            animation.setRepeatCount(
+                    AlphaAnimation.INFINITE
+            );
+
+            orb.startAnimation(animation);
+
+        } else {
+
+            orb.clearAnimation();
+            orb.setAlpha(1.0f);
+        }
+    }
 
     private void addMessage(
             String message
@@ -921,7 +1012,8 @@ public class MainActivity extends Activity {
             View parent =
                     (View) chat.getParent();
 
-            if (parent instanceof ScrollView) {
+            if (parent instanceof
+                    ScrollView) {
 
                 ((ScrollView) parent)
                         .fullScroll(
@@ -930,10 +1022,6 @@ public class MainActivity extends Activity {
             }
         });
     }
-
-    // =========================
-    // SETTINGS
-    // =========================
 
     private void openSettings() {
 
@@ -962,7 +1050,9 @@ public class MainActivity extends Activity {
 
         title.setTextColor(cyan);
         title.setTextSize(25);
-        title.setGravity(Gravity.CENTER);
+        title.setGravity(
+                Gravity.CENTER
+        );
 
         title.setPadding(
                 0,
@@ -978,8 +1068,14 @@ public class MainActivity extends Activity {
                 "Groq API Key"
         );
 
-        key.setTextColor(Color.WHITE);
-        key.setHintTextColor(Color.GRAY);
+        key.setTextColor(
+                Color.WHITE
+        );
+
+        key.setHintTextColor(
+                Color.GRAY
+        );
+
         key.setSingleLine(true);
 
         key.setText(
@@ -1032,8 +1128,10 @@ public class MainActivity extends Activity {
         if (tts != null) {
 
             try {
+
                 tts.stop();
                 tts.shutdown();
+
             } catch (Exception ignored) {
             }
         }
