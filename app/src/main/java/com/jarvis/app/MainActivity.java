@@ -48,8 +48,10 @@ public class MainActivity extends Activity {
     private static final String GROQ_MODEL =
             "openai/gpt-oss-20b";
 
-    private int cyan = Color.rgb(0, 220, 255);
-    private int dark = Color.rgb(3, 8, 15);
+    private final int cyan = Color.rgb(0, 220, 255);
+    private final int dark = Color.rgb(3, 8, 15);
+
+    private boolean ttsReady = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,102 +79,186 @@ public class MainActivity extends Activity {
         }
     }
 
+    // =========================
+    // JARVIS OVOZI
+    // =========================
+
     private void initVoice() {
 
-        tts = new TextToSpeech(this, result -> {
+        tts = new TextToSpeech(
+                this,
+                result -> {
 
-            if (result != TextToSpeech.SUCCESS) {
-                return;
-            }
+                    if (result != TextToSpeech.SUCCESS) {
 
-            boolean femaleFound = false;
+                        ttsReady = false;
 
-            try {
-                for (Voice voice : tts.getVoices()) {
+                        runOnUiThread(() -> {
 
-                    if (voice == null) {
-                        continue;
+                            status.setText(
+                                    "● TTS XATO"
+                            );
+
+                            Toast.makeText(
+                                    MainActivity.this,
+                                    "Telefon ovoz xizmatini ishga tushira olmadi",
+                                    Toast.LENGTH_LONG
+                            ).show();
+                        });
+
+                        return;
                     }
 
-                    Locale locale = voice.getLocale();
+                    boolean languageSet = false;
 
-                    if (locale == null) {
-                        continue;
+                    // Avval o'zbekcha ovozni qidiramiz
+                    try {
+
+                        int resultUz =
+                                tts.setLanguage(
+                                        new Locale("uz", "UZ")
+                                );
+
+                        if (resultUz != TextToSpeech.LANG_MISSING_DATA &&
+                                resultUz != TextToSpeech.LANG_NOT_SUPPORTED) {
+
+                            languageSet = true;
+                        }
+
+                    } catch (Exception ignored) {
                     }
 
-                    String language =
-                            locale.getLanguage();
+                    // O'zbekcha mavjud bo'lmasa,
+                    // mavjud ovozlardan birini tanlaymiz
+                    if (!languageSet) {
 
-                    String country =
-                            locale.getCountry();
+                        try {
 
-                    String name =
-                            voice.getName()
-                                    .toLowerCase(Locale.US);
+                            for (Voice voice : tts.getVoices()) {
 
-                    boolean uzbek =
-                            language.equalsIgnoreCase("uz");
+                                if (voice == null) {
+                                    continue;
+                                }
 
-                    boolean female =
-                            name.contains("female") ||
-                            name.contains("woman") ||
-                            name.contains("zira") ||
-                            name.contains("madina") ||
-                            name.contains("dilnoza");
+                                Locale locale =
+                                        voice.getLocale();
 
-                    if (uzbek && female) {
+                                if (locale == null) {
+                                    continue;
+                                }
 
-                        tts.setVoice(voice);
-                        femaleFound = true;
-                        break;
+                                if (!voice.isNetworkConnectionRequired()) {
+
+                                    tts.setVoice(voice);
+                                    languageSet = true;
+                                    break;
+                                }
+                            }
+
+                        } catch (Exception ignored) {
+                        }
+                    }
+
+                    // Oxirgi zaxira — ingliz tili
+                    if (!languageSet) {
+
+                        try {
+
+                            int resultEn =
+                                    tts.setLanguage(Locale.US);
+
+                            if (resultEn !=
+                                    TextToSpeech.LANG_MISSING_DATA &&
+                                    resultEn !=
+                                    TextToSpeech.LANG_NOT_SUPPORTED) {
+
+                                languageSet = true;
+                            }
+
+                        } catch (Exception ignored) {
+                        }
+                    }
+
+                    tts.setSpeechRate(0.88f);
+                    tts.setPitch(1.05f);
+
+                    ttsReady = languageSet;
+
+                    if (languageSet) {
+
+                        runOnUiThread(() -> {
+
+                            status.setText(
+                                    "● ONLINE  |  VOICE READY"
+                            );
+
+                            // Ovoz test
+                            speak(
+                                    "Assalomu alaykum. Men Jarvisman."
+                            );
+                        });
+
+                    } else {
+
+                        runOnUiThread(() -> {
+
+                            status.setText(
+                                    "● TTS OVOZI TOPILMADI"
+                            );
+
+                            Toast.makeText(
+                                    MainActivity.this,
+                                    "Telefonda Text-to-Speech ovozi mavjud emas",
+                                    Toast.LENGTH_LONG
+                            ).show();
+                        });
                     }
                 }
-
-                if (!femaleFound) {
-
-                    for (Voice voice : tts.getVoices()) {
-
-                        if (voice == null) {
-                            continue;
-                        }
-
-                        Locale locale =
-                                voice.getLocale();
-
-                        if (locale == null) {
-                            continue;
-                        }
-
-                        if (locale.getLanguage()
-                                .equalsIgnoreCase("uz")) {
-
-                            tts.setVoice(voice);
-                            break;
-                        }
-                    }
-                }
-
-            } catch (Exception ignored) {
-            }
-
-            int language =
-                    tts.setLanguage(
-                            new Locale("uz", "UZ")
-                    );
-
-            if (language == TextToSpeech.LANG_MISSING_DATA ||
-                    language == TextToSpeech.LANG_NOT_SUPPORTED) {
-
-                tts.setLanguage(
-                        new Locale("uz")
-                );
-            }
-
-            // Tabiiyroq va yumshoqroq ovoz
-            tts.setSpeechRate(0.82f);
-            tts.setPitch(1.05f);
-        });
+        );
     }
+
+    private void speak(String text) {
+
+        if (tts == null || !ttsReady) {
+
+            Toast.makeText(
+                    this,
+                    "JARVIS ovozi tayyor emas",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+            return;
+        }
+
+        try {
+
+            String cleanText =
+                    text
+                            .replace("*", "")
+                            .replace("#", "")
+                            .replace("`", "")
+                            .trim();
+
+            tts.speak(
+                    cleanText,
+                    TextToSpeech.QUEUE_FLUSH,
+                    null,
+                    "jarvis_voice"
+            );
+
+        } catch (Exception e) {
+
+            Toast.makeText(
+                    this,
+                    "Ovoz chiqarishda xatolik",
+                    Toast.LENGTH_SHORT
+            ).show();
+        }
+    }
+
+    // =========================
+    // UI
+    // =========================
 
     private GradientDrawable background(
             int color,
@@ -229,7 +315,7 @@ public class MainActivity extends Activity {
                 new TextView(this);
 
         status.setText(
-                "● ONLINE  |  GROQ AI"
+                "● STARTING VOICE..."
         );
 
         status.setTextColor(
@@ -489,6 +575,10 @@ public class MainActivity extends Activity {
         );
     }
 
+    // =========================
+    // AI
+    // =========================
+
     private void sendMessage() {
 
         String question =
@@ -548,7 +638,7 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
 
                 answer =
-                        "Xatolik: " +
+                        "Xatolik yuz berdi: " +
                         e.getMessage();
             }
 
@@ -558,7 +648,7 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> {
 
                 status.setText(
-                        "● ONLINE  |  GROQ AI"
+                        "● ONLINE  |  VOICE READY"
                 );
 
                 addMessage(
@@ -622,8 +712,7 @@ public class MainActivity extends Activity {
                 "Gaplarni qisqa va aniq tuz. " +
                 "Ovoz chiqarib o'qilganda insondek tabiiy eshitilsin. " +
                 "Emoji ishlatma. " +
-                "Maxsus belgilar va murakkab formatlardan foydalanma. " +
-                "Inglizcha javob bermaslikka harakat qil."
+                "Maxsus belgilar va murakkab formatlardan foydalanma."
         );
 
         JSONObject user =
@@ -736,12 +825,15 @@ public class MainActivity extends Activity {
                 .getString("content");
     }
 
+    // =========================
+    // OVOZNI QABUL QILISH
+    // =========================
+
     private void startVoice() {
 
         Intent intent =
                 new Intent(
-                        RecognizerIntent
-                                .ACTION_RECOGNIZE_SPEECH
+                        RecognizerIntent.ACTION_RECOGNIZE_SPEECH
                 );
 
         intent.putExtra(
@@ -751,8 +843,7 @@ public class MainActivity extends Activity {
 
         intent.putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent
-                        .LANGUAGE_MODEL_FREE_FORM
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
         );
 
         intent.putExtra(
@@ -815,6 +906,10 @@ public class MainActivity extends Activity {
         }
     }
 
+    // =========================
+    // CHAT
+    // =========================
+
     private void addMessage(
             String message
     ) {
@@ -836,20 +931,9 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void speak(
-            String text
-    ) {
-
-        if (tts != null) {
-
-            tts.speak(
-                    text,
-                    TextToSpeech.QUEUE_FLUSH,
-                    null,
-                    "jarvis_voice"
-            );
-        }
-    }
+    // =========================
+    // SETTINGS
+    // =========================
 
     private void openSettings() {
 
@@ -905,34 +989,6 @@ public class MainActivity extends Activity {
                 )
         );
 
-        EditText endpoint =
-                new EditText(this);
-
-        endpoint.setHint(
-                "API Endpoint"
-        );
-
-        endpoint.setTextColor(Color.WHITE);
-        endpoint.setSingleLine(true);
-
-        endpoint.setText(
-                GROQ_ENDPOINT
-        );
-
-        EditText model =
-                new EditText(this);
-
-        model.setHint(
-                "Model"
-        );
-
-        model.setTextColor(Color.WHITE);
-        model.setSingleLine(true);
-
-        model.setText(
-                GROQ_MODEL
-        );
-
         Button save =
                 new Button(this);
 
@@ -944,8 +1000,6 @@ public class MainActivity extends Activity {
 
         layout.addView(title);
         layout.addView(key);
-        layout.addView(endpoint);
-        layout.addView(model);
         layout.addView(save);
 
         setContentView(layout);
@@ -968,6 +1022,7 @@ public class MainActivity extends Activity {
             ).show();
 
             buildInterface();
+            initVoice();
         });
     }
 
@@ -976,8 +1031,11 @@ public class MainActivity extends Activity {
 
         if (tts != null) {
 
-            tts.stop();
-            tts.shutdown();
+            try {
+                tts.stop();
+                tts.shutdown();
+            } catch (Exception ignored) {
+            }
         }
 
         super.onDestroy();
